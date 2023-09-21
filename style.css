@@ -1,0 +1,32 @@
+html {
+    width: 100%;
+    height: 100%;
+    margin: 0px;
+    display: flex;
+    flex-direction: column;
+}
+body {
+    flex-grow: 1;
+    margin: 12px;
+    display: flex;
+    background-color: #333333;
+}
+
+.main {
+    flex-grow: 1;
+    display: grid;
+    grid-template-rows: 60px 1fr;
+    grid-template-columns: 1fr 3fr;
+}
+.top-bar {
+    grid-area: 1/1/1/3;
+    background-color: #444444;
+}
+.side-bar {
+    grid-area: 2/1/2/1;
+    background-color: gray;
+}
+.content-area {
+    grid-area: 2/2/2/2;
+    background-color: white;
+}
