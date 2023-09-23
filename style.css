@@ -1,3 +1,11 @@
+
+*[loadinjs*=clear] {
+    background-color: lightblue;
+}
+*[loadinjs*=prototype] {
+    background-color: lightgreen;
+}
+
 html {
     width: 100%;
     height: 100%;
@@ -21,6 +29,30 @@ body {
 .top-bar {
     grid-area: 1/1/1/3;
     background-color: #444444;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+}
+.top-bar > .left-side {
+    display: flex;
+    align-items: center;
+}
+.top-bar > .left-side > * {
+    height: fit-content;
+    padding: 4px;
+}
+.top-bar > .right-side {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+.top-bar > .right-side > * {
+    display: flex;
+    align-items: center;
+    height: fit-content;
+}
+.logo {
+    font-size: x-large;
 }
 .side-bar {
     grid-area: 2/1/2/1;
