@@ -5,9 +5,12 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link type="text/css" rel="stylesheet" href="style.css">
-        <script src="./loadin.js"></script>
-        <script src="./todoApp.js"></script>
-        <script defer src="./main.js"></script>
+        <script src="./js/lib/grouptools.js"></script>
+        <script src="./js/lib/keyop.js"></script>
+        <script src="./js/lib/loadin.js"></script>
+        <script src="./js/lib/apptools.js"></script>
+        <script src="./js/app.js"></script>
+        <script defer src="./js/main.js"></script>
     </head>
     <body>
         <div id="app-container" class="main">
@@ -21,8 +24,11 @@
                 </div>
             </div>
             <div class="side-bar">
-                <div id="todo-list" jsloadin="clear">
-                    <div jsloadin="#todo.list.item"></div>
+                <div class="input-container">
+                    <input id="list-input" class="input">
+                </div>
+                <div id="todo-list">
+                    <div jsloadin="#todo.list.item delete"></div>
                 </div>
             </div>
             <div class="content-area">
@@ -30,8 +36,8 @@
                     Title
                 </h1>
                 <hr>
-                <div id="todo-content" test>
-                    <div jsloadin="#todo.content.item clone delete">Prototype</div>
+                <div id="todo-content">
+                    <div jsloadin="#todo.content.item delete">Prototype</div>
                 </div>
             </div>
         </div>
