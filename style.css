@@ -1,9 +1,10 @@
 
-*[loadinjs*=clear] {
-    background-color: lightblue;
-}
-*[loadinjs*=prototype] {
-    background-color: lightgreen;
+[jsloadin*=delete] {
+    display: none;
+    opacity: 0.0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
 }
 
 html {
@@ -71,4 +72,98 @@ body {
 .input-container {
     display: flex;
     padding: 4px 5px;
+}
+
+.todo-list {
+    display: flex;
+    flex-direction: column;
+    align-content: center;
+}
+
+.todo-list-item {
+    display: flex;
+    text-align: center;
+    padding: 2px 2px;
+    margin: 2px 4px;
+    background-color: #a9e5ffbb;
+    border: 4px solid #555555dd;
+    
+}
+.todo-list-item .icons .button {
+    display: flex;
+    align-items: center; 
+}
+.todo-list-item .icons {
+    flex-grow: 1;
+    display: flex;
+    justify-content: end;
+    overflow: hidden;
+    align-content: center;
+}
+.todo-list-item .hidden .icons {
+    width: 0px;
+    opacity: 0.0;
+}
+.todo-list-item .hidden {
+    flex-grow: 0;
+    display: flex;
+    width: 10px;
+    background-color: rgb(62, 98, 114);
+    align-items: center;
+    border-radius: 4px;
+}
+.todo-list-item .hidden:hover .icons {
+    width: auto;
+    opacity: 1.0;
+}
+.todo-list-item .hidden:hover {
+    flex-grow: 1;
+    width: auto;
+    background-color: rgba(4, 152, 215, 0.391);
+    border-radius: 20px;
+    transition: width 1s;
+}
+.todo-list-item .content {
+    flex-grow: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.todo-list-item .label {
+    width: 16ch;
+    word-wrap: break-word;
+    height: fit-content;
+    font-size: large;
+    color: black;
+}
+.content-area > .title {
+    text-align: center;
+}
+.todo-item {
+    text-align: center;
+    margin: 5px 20px;
+    padding: 8px 2px;
+    background-color: #bbbbbb;
+    border: 4px solid #555555;
+    opacity: 0.7;
+    backdrop-filter: blur(200%);
+}
+
+.content-area .action {
+    position: absolute;
+    right: 32px;
+    bottom: 24px;
+}
+
+.button, .button > img {
+    border-radius: 50%;
+}
+.button:hover > img {
+    border-radius: 50%;
+    filter: invert(100%) brightness(800%) invert(200%) brightness(1200%);
+}
+
+.prevent-select {
+    -webkit-user-select: none;
+    user-select: none;
 }

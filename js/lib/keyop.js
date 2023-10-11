@@ -1,20 +1,27 @@
-/*
-    options:
-        accept=type: accepts the target value for the operation. 
-        make=type: make (overwrite) the path. 
-        merge=type: go into elements. 
-        type=>type: function to determine element type. => 
-        new=>object: function that returns a new object.
-        empty=>value: returns a value upon being empty
-    types: void => 1, value => 2, element => 4, object => 8
-    To overwrite a type to go agiants default behavior use it. 
-*/
+
 let keyop = (function keyop(){
+    /*
+        options:
+            accept=type: accepts the target value for the operation. 
+            make=type: make (overwrite) the path of anything that matches the type. 
+            merge=type: go into elements that match the type. 
+            type=>type: function to determine element type (using bits). 
+            create=>object: function that creates a new object for a path. 
+            fail=>value: A value to default to upon failure.
+        types: void => 1, value => 2, element => 4, object => 8, funtion => 16
+        types can be changed by using a different type function (and by overiding default options in usage)
+
+        Mix types using bit operations
+
+        Operands on a branch from a string representing a key of that branch
+        Operands providing setting, getting, path creation, filtering, and other functionality
+    */
     const VOID = 1;
     const VALUE = 2;
     const ELEMENT = 4;
     const OBJECT = 8;
     const FUNCTION = 16;
+    // A type getting function
     function getType(elm){
         if(!elm){
             // undefined
@@ -39,6 +46,7 @@ let keyop = (function keyop(){
         // "boolean", "number", "bigint", "string", "symbol"
         return VALUE;
     }
+    // function heads
     function setKey(obj, name, value=undefined, options={}){
         if(name === undefined) return options.fail? options.fail() : undefined;
         return setKeyBase(obj, name.split("."), value, options);
@@ -47,7 +55,8 @@ let keyop = (function keyop(){
         if(name === undefined) return obj;
         return getKeyBase(obj, name.split("."), options);
     }
-    function setKeyBase(obj, nameList, value, {accept=~0, make=~0, merge=OBJECT|ELEMENT, type:typeOf=getType, new:create=()=>({}), fail=()=>undefined}){
+    // function bases
+    function setKeyBase(obj, nameList, value, {accept=~0, make=~0, merge=OBJECT|ELEMENT, type:typeOf=getType, create=()=>({}), fail=()=>undefined}){
         let type, next;
         for(let i=0; i<nameList.length-1; i++){
             next = obj[nameList[i]];
@@ -84,12 +93,14 @@ let keyop = (function keyop(){
             return fail();
         }
     }
+    // "this" for use in a class or object
     function setThisKey(name, value, options){
         return setKey(this, name, value, options);
     }
     function getThisKey(name, options){
         return getKey(this, name, options);
     }
+    // "bind" to connect to a specific object
     function bindGetKey(obj, optionsElement={}){
         function get(name, options=optionsElement){
             return getKey(obj, name, options);
@@ -102,6 +113,7 @@ let keyop = (function keyop(){
         }
         return set;
     }
+    // "const bind" bind without access to settings
     function bindConstGetKey(obj, options){
         function get(name){
             return getKey(obj, name, options);
@@ -114,6 +126,7 @@ let keyop = (function keyop(){
         }
         return set;
     }
+    // "interface bind" bind with the settings passed through a function to control the settings input
     function bindInterfaceGetKey(obj, adjust=()=>{}){
         function get(name, options){
             return getKey(obj, name, adjust(options));
@@ -150,7 +163,8 @@ let keyop = (function keyop(){
             void: VOID,
             value: VALUE,
             element: ELEMENT,
-            object: OBJECT
+            object: OBJECT,
+            function: FUNCTION
         }
     };
     Object.freeze(keyop.this);

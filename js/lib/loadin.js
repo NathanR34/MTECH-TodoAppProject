@@ -1,6 +1,4 @@
 let jsloadin = (function(){
-    
-    const VERSION = "0";
 
     let elements = {}
     let get = keyop.bind.get(elements);
@@ -90,12 +88,13 @@ let jsloadin = (function(){
         if(!(element instanceof Element)) return;
         let attr = element.attributes.getNamedItem("jsloadin");
         let children = [...element.children];
-        if(attr){
-            ( new JSLoadInElement(element) ).initAttr();
-        }
         for(let elm of children){
             loadin(elm);
         }
+        if(attr){
+            ( new JSLoadInElement(element) ).initAttr();
+        }
+        
     }
     function verifyElements(list){
         let failed = [];
@@ -104,45 +103,57 @@ let jsloadin = (function(){
         }
         return failed;
     }
-    function getAs(obj, onFail, failData){
+    function getAs(obj, modify, onFail, failData){
         for(let key in obj){
             let name = obj[key];
             let result = get(name);
             if(!result && onFail){
-                onFail(failData, key, name);
+                result = onFail(failData, key, name, result);
+            }
+            if(modify){
+                result = modify(result, onFail, failData);
             }
             keyop.set(obj, key, result);
         }
         return obj;
     }
-    function queryAs(element, obj, onFail, failData){
+    function queryAs(element, obj, modify, onFail, failData){
         for(let key in obj){
             let query = obj[key];
             let result = element.querySelector(query);
             if(!result && onFail){
-                onFail(failData, key, query);
+                result = onFail(failData, key, query, result);
+            }
+            if(modify){
+                result = modify(result, onFail, failData);
             }
             keyop.set(obj, key, result);
         }
         return obj;
     }
-    function queryAllAs(element, obj, onFail, failData){
+    function queryAllAs(element, obj, modify, onFail, failData){
         for(let key in obj){
             let query = obj[key];
             let result = element.querySelectorAll(query);
             if(!result.length && onFail){
-                onFail(failData, key, query);
+                result = onFail(failData, key, query, result);
+            }
+            if(modify){
+                result = modify(result, onFail, failData);
             }
             keyop.set(obj, key, result);
         }
         return obj;
     }
-    function idsAs(element, obj, onFail, failData){
+    function idsAs(element, obj, modify, onFail, failData){
         for(let key in obj){
             let id = obj[key];
             let result = element.getElementById(id);
             if(!result && onFail){
-                onFail(failData, key, id);
+                result = onFail(failData, key, id, result);
+            }
+            if(modify){
+                result = modify(result, onFail, failData);
             }
             keyop.set(obj, key, result);
         }
@@ -157,7 +168,6 @@ let jsloadin = (function(){
         getAs: getAs,
         queryAs: queryAs,
         queryAllAs: queryAllAs,
-        idsAs: idsAs,
-        version: VERSION
+        idsAs: idsAs
     };
 })();

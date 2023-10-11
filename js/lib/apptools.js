@@ -1,41 +1,36 @@
 let AppTools = (function(){
-    class AppTools {
-        static compareVersion(selected, {version, min, max, max_known}={}){
-            if(max_known && selected > max_known){
-                return "new";
-            }
-            if(max && selected > max){
-                return "invalid_new";
-            }
-            if(min && selected < min){
-                return "invalid_old";
-            }
-            if(selected < version){
-                return "old";
-            }
-            return "current";
-        }
-        constructor(name, userTools, devTools, versionInfo={version="0", min, max, max_known}={}){
-            this.name = name;
-            this.user = userTools || (new AppTools.UserTools());
-            this.dev = devTools || (new AppTools.DevTools());
-            this.versionInfo = versionInfo;
-        }
-        compareVersion(version){
-            return AppTools.compareVersion(version, this.versionInfo);
-        }
-        log(){}
-    }
-    AppTools.UserTools = class UserTools {
+    class UserTools {
         constructor(notify=()=>{}){
             this.notify = notify;
         }
         notify(){}
     }
-    AppTools.DevTools = class DevTools {
-        constructor(log=()=>{}){
+    class DevTools {
+        constructor(log=()=>{}, {debug=false}={}){
             this.log = log;
+            this.debug = debug;
         }
     }
+    class AppTools {
+        constructor(appName, devTools=(new DevTools()), userTools=(new UserTools())){
+            this.name = appName;
+            this.dev = devTools;
+            this.user = userTools;
+            this.hasNotifiedUser = devTools.debug;
+        }
+        submitFailure(...log){
+            if(!this.hasNotifiedUser){
+                try {
+                    this.user.notify(`${this.name} has failed to initialize correctly. \nYou will likely notice broken functionality. `);
+                } catch (err){
+                    this.dev.log(`Failed to notify user. (App is broken)`);
+                }
+                this.hasNotifiedUser = true;
+            }
+            this.dev.log(...log);
+        }
+    }
+    AppTools.UserTools = UserTools;
+    AppTools.DevTools = DevTools;
     return AppTools;
 })();
