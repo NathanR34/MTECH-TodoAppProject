@@ -13,15 +13,24 @@ let TodoApp = (function(appElement, userTools, devTools){
     let Response = itools.Response;
 
     let appContent = {
-        list: "#todo-list",
+        list: "#content-list",
         title: "#todo-title",
-        content: "#todo-content",
-        input: "#list-input"
+        todoList: "#todo-list",
+        content: "#content",
+        input: "#list-input",
+        inputContainer: "#list-input-container"
     }
 
     let appElements = {
         listItem: "todo.list.item",
-        todoItem: "todo.content.item"
+        todoItem: "todo.content.item",
+        userSettings: "todo.user.settings",
+        userProfile: "todo.user.profile"
+    }
+
+    let appButtons = {
+        "userProfile": "#user-profile-button",
+        "userSettings": "#user-settings-button"
     }
 
     /*  INITIALIZATION  */
@@ -31,42 +40,55 @@ let TodoApp = (function(appElement, userTools, devTools){
         }
 
         let failed = [];
-        jsloadin.queryAs(appElement, appContent, false, onFail, failed);
+        jsloadin.queryAs(appElement, appContent, null, onFail, failed);
         if(failed.length > 0) {
             app.submitFailure("Missing elements:", failed);
         }
         failed = [];
         jsloadin.loadin(document.body);
-        jsloadin.getAs(appElements, false, onFail, failed);
+        jsloadin.getAs(appElements, null, onFail, failed);
         if(failed.length > 0){
-            app.submitFailure("Failed to initialize jsloadin elements:", failed);
+            app.submitFailure("Failed to find jsloadin elements:", failed);
         }
+        jsloadin.queryAllAs(appElement, appButtons, 
+            (elements)=>(new ElementGroupInterface(elements, {
+                settings: appElements.userSettings, 
+            }))
+        )
     }
 
     /* Interaction */
 
-    let responses = {
-
-    }
+    let responses = {}
 
     {
         responses.activate = new Response("click", function(ei, elm, event){
-            ei.controller.active = true;
+            ei.ref.host.active = true;
         });
     
-        function edit(ei, elm, event){
-    
+        function edit(ei, elm){
+            ei.ref.host.startEdit();
+        }
+
+        function endEdit(ei){
+            ei.ref.host.endEdit();
         }
     
-        responses.edit = {click: new Response("click", edit)};
-    
-        responses.edit = {dblclick: new Response("dblclick", edit)};
+        responses.edit = {
+            click: new Response("click", edit),
+            dblclick: new Response("dblclick", edit),
+            end: {
+                keydown: new Response("keydown", function(ei, elm, event){
+                    if(event.key === "Enter") endEdit(ei, elm);
+                })
+            }
+        };
 
-        function deleteFn(ei, elm, event){
-
+        function deleteFn(ei){
+            ei.ref.host.delete();
         }
     
-        responses.delete = {click: new Response("click", deleteFn)}
+        responses.delete = {dblclick: new Response("dblclick", deleteFn)}
         
         function clone(ei, elm, event){
 
@@ -75,15 +97,24 @@ let TodoApp = (function(appElement, userTools, devTools){
         responses.clone = {click: new Response("click", clone)};
         
         function createListItem(ei, elm){
-            ei.controller.createItem(parseInput(elm.value), appElements.listItem, todoContentElementInterface);
+            elm = ei.ref.valueI && ei.ref.valueI.element || ei.ref.valueElement || elm;
+            ei.ref.host.createItem(elm.value, appElements.listItem, todoContentElementInterface);
             elm.value = "";
         }
 
+        function createTodoItem(ei, elm){
+            ei.ref.host.createItem("Todo", appElements.todoItem);
+        };
+
         responses.create = {
-            list:{
+            list: {
                 keydown: new Response("keydown", function(ei, elm, event){
                     if(event.key === "Enter") createListItem(ei, elm);
-                })
+                }),
+                click: new Response("click", createListItem)
+            },
+            todo: {
+                click: new Response("click", createTodoItem)
             }
         }
     }
@@ -93,44 +124,31 @@ let TodoApp = (function(appElement, userTools, devTools){
     /* MAIN */
 
     class TodoList {
-        constructor(listElement, inputElement){
-            this.listI = new ElementInterface(listElement, this);
-            this.inputI = new ElementInterface(inputElement, this);
+        constructor(listElement, inputElement, inputContainer){
+            this.listI = new ElementInterface(listElement, {host: this});
+            this.inputI = new ElementInterface(inputElement, {host: this});
+
+            this.inputButtons = jsloadin.queryAllAs(inputContainer, {
+                    add: "[todo*=add]"
+                }, 
+                (elements)=>(new ElementGroupInterface(elements, {host: this, valueI: this.inputI}))
+            );
 
             this.inputI.addResponse(responses.create.list.keydown);
+            this.inputButtons.add.addResponse(responses.create.list.click);
 
             this.group = new HostGroup(this);
 
             this.buttons = jsloadin.queryAllAs(listElement, {
                     add: "[todo*=add]"
                 }, 
-                (elements)=>(new ElementGroupInterface(elements, this))
+                (elements)=>(new ElementGroupInterface(elements, {host: this}))
             );
         }
-        static load(data, listElement, args){
-            let list = new TodoList(listElement);
-            list.load(data, args);
+        static load(data, ref){
+            let list = new TodoList(ref.listElement, ref.inputElement, ref.inputContainer);
+            list.load(data, ref);
             return list;
-        }
-
-        // v Host v //
-        addMember(item){
-            return this.listI.add(item.itemI);
-        }
-        removeMember(item){
-            return this.listI.remove(item.itemI);
-        }
-        notify(){}
-        // ^ Host End ^ //
-
-        setAllInactive(){
-            this.group.notify(this, {active: false});
-        }
-        add(item){
-            return this.group.add(item);
-        }
-        remove(item){
-            return this.group.remove(item);
         }
         save(){
             let lists = [];
@@ -139,28 +157,55 @@ let TodoApp = (function(appElement, userTools, devTools){
             }
             return {list: lists};
         }
-        load(data, args){
-            for(let content of data.list){
-                let todoContent = TodoContent.load(content, this.group, ...args);
-                this.add(todoContent);
+        load(data, ref){
+            for(let itemData of data.list){
+                this.add(TodoList.Item.load(itamData, ref, this));
             }
         }
+
+
+        addMember(item){
+            return this.listI.add(item.itemI, "prepend");
+        }
+        removeMember(item){
+            return this.listI.remove(item.itemI);
+        }
+        notify(){}
+        receive(){}
+
+        setAllInactive(){
+            this.group.notify(this, {active: false});
+        }
+        add(item){
+            return this.group.add(item);
+        }
+        remove(item){
+            if(this.group.remove(item)){
+                return true;
+            }
+            return false;
+        }
         createItem(name, model, contentInterface){
+            name = parseInput(name);
+            if(!name) return false;
             let content = new TodoContent(contentInterface, name);
-            let item = TodoList.Item.fromModel(model, content);
+            let item = TodoList.Item.fromModel(model, content, this);
             this.add(item);
+            return true;
         }
     }
 
     TodoList.Item = class TodoListItem {
-        constructor(itemElement, content){
+        constructor(itemElement, content, contentList){
 
-            this.itemI = new ElementInterface(itemElement, this);
+            this.contentList = contentList;
+
+            this.itemI = new ElementInterface(itemElement, {host: this});
             // TODO add interactivity
 
             let labelElement = itemElement.querySelector("[todo*=label");
             if(labelElement){
-                labelElement = new ElementInterface(labelElement, this);
+                labelElement = new ElementInterface(labelElement, {host: this});
             } else {
                 labelElement = this.itemI;
             }
@@ -170,22 +215,59 @@ let TodoApp = (function(appElement, userTools, devTools){
                     duplicate: "[todo*=duplicate]",
                     delete: "[todo*=delete]",
                     edit: "[todo*=edit]",
-                    enable: "[todo*=enable]"
+                    collapse: "[todo=collapse]"
                 }, 
-                (elements)=>(new ElementGroupInterface(elements, this))
+                (elements)=>(new ElementGroupInterface(elements, {host: this}))
             );
 
             this.labelI.addResponse(responses.activate);
 
+            buttons.edit.addResponse(responses.edit.click);
+            buttons.delete.addResponse(responses.delete.dblclick);
+            this.labelI.addResponse(responses.edit.end.keydown);
+
             this.buttons = buttons;
             this.content = content;
 
+            this.inEdit = false;
+
         }
-        static fromModel(itemModel, content){
-            return new TodoListItem(itemModel.clone(), content);
+        static fromModel(itemModel, content, contentList){
+            return new TodoListItem(itemModel.clone(), content, contentList);
         }
-        onclick(){
-            
+        static load(data, ref, contentList){
+            let content = TodoContent.load(data.content, ref);
+            let item = TodoList.Item.fromModel(ref.listItemModel, content, contentList);
+            item.load(data.item, ref);
+            return item;
+        }
+        save(){
+
+        }
+        load(data, ref){
+
+        }
+        clone(){
+
+        }
+        startEdit(){
+            if(!this.inEdit){
+                this.inEdit = true;
+                this.labelI.assign("-.prevent-select");
+                this.labelI.startEdit();
+            } else {
+                this.endEdit();
+            }
+        }
+        endEdit(){
+            if(this.inEdit){
+                this.changeLabel(parseInput(this.labelI.endEdit()));
+                this.labelI.assign(".prevent-select");
+                this.inEdit = false;
+            }
+        }
+        delete(){
+            this.contentList.remove(this);
         }
         notify(from, {label, active}){
             if(label !== undefined){
@@ -199,12 +281,26 @@ let TodoApp = (function(appElement, userTools, devTools){
             if(this._content){
                 this._content.agents.remove(this);
             }
-            content.agents.add(this);
-            this.label = content.name;
-            this._content = content;
+            if(content){
+                if(content.agents.add(this)){
+                    this.label = content.name;
+                    this._content = content;
+                } else {
+                    this._content = null;
+                }
+            } else {
+                this._content = null;
+            }
         }
         get content(){
             return this._content;
+        }
+        changeLabel(label){
+            if(label && this.content){
+                this.content.notify(this, {name:label});
+            } else {
+                this.label = label;
+            }
         }
         set label(label){
             if(this.content){
@@ -228,9 +324,13 @@ let TodoApp = (function(appElement, userTools, devTools){
     }
 
     class TodoContentInterfaceStatic {
-        constructor(contentListElement, contentTitleElement){
+        constructor(contentListElement, contentTitleElement, buttonRootElement){
             this.listI = new ElementInterface(contentListElement);
             this.titleI = new ElementInterface(contentTitleElement);
+            this.buttons = jsloadin.queryAllAs(buttonRootElement, {
+                add: "[todo*=add]"
+            }, (elements)=>(new ElementGroupInterface(elements, {host: this})));
+            this.buttons.add.addResponse(responses.create.todo.click);
         }
         set title(title){
             this.titleI.text = title;
@@ -260,6 +360,11 @@ let TodoApp = (function(appElement, userTools, devTools){
         }
         get current(){
             return this._current;
+        }
+        createItem(...args){
+            if(this.current){
+                this.current.createItem(...args);
+            }
         }
         add(element){
             if(element instanceof TodoItem){
@@ -293,21 +398,40 @@ let TodoApp = (function(appElement, userTools, devTools){
         constructor(contentInterface, name){
             this.todos = new HostGroup(this);
             this.agents = new HostGroup(this);
-            
-            this.name = name;
             this.contentInterface = contentInterface;
+            this.name = name;
         }
         static load(data, model){
-            console.log(data);
             let content = TodoContent.fromModel(data.name, model);
             content.load(data);
             if(group) group.add(content);
             return content;
         }
+        load(data){
+            for(let item in data.items){
+                this.add(TodoItem.load(item));
+            }
+        }
+        save(){
+            let items = [];
+            for(let item in this.items){
+                items.push(item.save());
+            }
+            return {
+                name: this.name,
+                items: items
+            }
+        }
+        clone(){
+
+        }
         
         set name(name){
-            this.agents.notify(this, {label:name});
             this._name = name;
+            this.agents.notify(this, {label:name});
+            if(this.contentInterface.current === this){
+                this.contentInterface.title = name;
+            }
         }
         get name(){
             return this._name;
@@ -332,7 +456,9 @@ let TodoApp = (function(appElement, userTools, devTools){
         }
         notify(from, {active, name}){
             if(active !== undefined && !active) this.active = active;
-            if(name) this.name = name;
+            if(name) {
+                this.name = name;
+            }
         }
         select(){
 
@@ -345,55 +471,72 @@ let TodoApp = (function(appElement, userTools, devTools){
         }
         add(todo){
             this.todos.add(todo);
+            this.addToCurrent(todo);
+        }
+        addToCurrent(todo){
+            if(this.contentInterface.current === this){
+                this.contentInterface.add(todo);
+            }
         }
         remove(todo){
             this.todos.remove(todo);
         }
-        load(data){
-            for(let item in data.items){
-                this.add(TodoItem.load(item));
-            }
-        }
-        save(){
-            let items = [];
-            for(let item in this.items){
-                items.push(item.save());
-            }
-            return {
-                name: this.name,
-                items: items
-            }
+        createItem(goal, model){
+            this.add(TodoItem.fromModel(goal, model));
         }
     }
 
     class TodoItem {
-        constructor(goal, element, group){
+        constructor(goal, element){
+            this.todoI = new ElementInterface(element, {host: this});
+            let goalElement = element.querySelector("[todo*=goal]");
+            if(goalElement){
+                goalElement = new ElementInterface(goalElement, {host: this});
+            } else {
+                goalElement = this.todoI;
+            }
+            this.goalI = goalElement;
+
             this.goal = goal;
-            this.element = element;
-            this.todoI = new ElementInterface(element);
-            this.goalField = element.querySelector("[todo*=goal]") || element;
+
+            this.inEdit = false;
+        }
+        static fromModel(goal, model){
+            return new TodoItem(goal, model.clone());
         }
         static load(data, model){
             let todo = new TodoItem.fromModel(data.name, model);
             todo.load(data);
             return todo;
         }
-        static fromModel(goal, model){
-            return new TodoItem(goal, model.clone());
+        save(){
+            return {
+                goal: this.goal
+            }
+        }
+        load(){}
+        clone(){}
+        startEdit(){
+            if(!this.inEdit){
+                this.inEdit = true;
+                this.goalI.startEdit();
+                
+            } else {
+                this.endEdit();
+            }
+        }
+        endEdit(){
+            if(this.inEdit){
+                this.goal = parseInput(this.goalI.endEdit());
+                this.inEdit = false;
+            }
         }
         get goal(){
             return this._goal;
         }
         set goal(goal){
-            this.goalField.innerText = goal;
+            this.goalI.text = goal;
             this._goal = goal;
-        }
-        load(data){
-        }
-        save(){
-            return {
-                goal: this.goal
-            }
         }
     }
 
@@ -411,10 +554,9 @@ let TodoApp = (function(appElement, userTools, devTools){
         }
         return s;
     }
+    var todoContentElementInterface = new TodoContentInterfaceStatic(appContent.todoList, appContent.title, appContent.content);
 
-    var todoContentElementInterface = new TodoContentInterfaceStatic(appContent.content, appContent.title);
-
-    let todoList = new TodoList(appContent.list, appContent.input);
+    let todoList = new TodoList(appContent.list, appContent.input, appContent.inputContainer);
 
     function load(data){
         todoList.load(data, [appElements.listItem, []]);

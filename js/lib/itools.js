@@ -9,7 +9,13 @@ let itools = (function(){
             this.respond = fn;
         }
         bind(handle){
-            handle[this.type].add(this);
+            let type = this.type;
+            let types = [type];
+            if(!handle[type]){
+                handle[type] = new Set();
+            }
+            handle[type].add(this);
+            return types;
         }
         unbind(handle){
             handle[this.type].remove(this);
@@ -17,20 +23,41 @@ let itools = (function(){
     }
     
     class ElementInterface {
-        constructor(element, controller){
-            this.controller = controller;
+        constructor(element, ref={}){
+            this.ref = ref;
             this.element = element;
             if(element){
                 element.controller = this;
             }
             this.handle = {};
         }
-        addResponse(response){
-            if(!this.handle[response.type]){
-                this.element.addEventListener(response.type, this);
-                this.handle[response.type] = new Set();
+        focus(){
+            this.element.focus();
+            return this;
+        }
+        select(){
+            if(this.element.select){
+                this.element.select();
+            } else {
+                window.getSelection().selectAllChildren(this.element);
             }
-            response.bind(this.handle);
+            
+            return this;
+        }
+        startEdit(){
+            this.element.contentEditable = true;
+            this.focus().select();
+            return this;
+        }
+        endEdit(){
+            let value = this.element.innerText;
+            this.element.contentEditable = false;
+            return value;
+        }
+        addResponse(response){
+            for(let type of response.bind(this.handle)){
+                this.element.addEventListener(type, this);
+            }
         }
         handleEvent(event){
             let type = event.type;
@@ -40,20 +67,31 @@ let itools = (function(){
                 }
             }
         }
-        add(element){
+        add(element, method="append"){
             if(element instanceof ElementInterface){
                 element = element.element;
             }
-            this.element.appendChild(element);
+            switch(method){
+                case "append":
+                    this.element.append(element);
+                    break;
+                case "prepend":
+                    this.element.prepend(element);
+                    break;
+                default:
+                    this.element.append(element);
+            }
             return true;
         }
-        remove(){
+        remove(element){
             if(element instanceof ElementInterface){
                 element = element.element;
             }
             if(element.parentElement === this.element){
                 this.element.removeChild(element);
+                return true;
             }
+            return false;
         }
         removeAll(){
             while(this.element.firstChild){
@@ -84,12 +122,13 @@ let itools = (function(){
     };
     
     class ElementGroupInterface {
-        constructor(elements, controller){
+        constructor(elements, ref){
             this.elements = new Set();
             if(elements){
                 this.addAll(elements);
             }
-            this.controller = controller;
+            this.ref = ref;
+            this.handle = {};
         }
         *[Symbol.iterator](){
             for(let element of this.elements){
@@ -105,7 +144,18 @@ let itools = (function(){
             }
         }
         handleEvent(event, element){
-            if(this.handle && (event.type in this.handle)) this.handle[event.type](this, element, event);
+            let type = event.type;
+            if(type in this.handle){
+                for(let response of this.handle[type]){
+                    response.respond(this, element, event);
+                }
+            }
+        }
+        addResponse(response){
+            let types = response.bind(this.handle);
+            for(let element of this.elements){
+                element.addEventTypes(...types);
+            }
         }
     };
     ElementGroupInterface.Member = class ElementGroupMember extends ElementInterface {
@@ -116,10 +166,15 @@ let itools = (function(){
         handleEvent(event){
             this.group.handleEvent(event, this);
         }
-        get controller(){
-            return this.group.controller;
+        addEventTypes(...types){
+            for(let type of types){
+                this.element.addEventListener(type, this);
+            }
         }
-        set controller(controller){}
+        get ref(){
+            return this.group.ref;
+        }
+        set ref(_){}
     }
 
     class Group {

@@ -45,7 +45,7 @@ let jsloadin = (function(){
                     this.element.removeChild(this.element.firstElementChild);
                 }
             } 
-            else if(flag === "delete" && this.element.parentElement){
+            else if(flag === "remove" && this.element.parentElement){
                 this.element.parentElement.removeChild(this.element);
             } 
             else if(flag[0] === "*" && this.element.parentElement){
