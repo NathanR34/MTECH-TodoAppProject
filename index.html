@@ -29,19 +29,21 @@
                     <div id="list-input-button" class="list-input-button" todo="add">+</div>
                 </div>
                 <hr>
-                <div id="content-list" class="todo-list">
-                    <div jsloadin="#todo.list.item remove" draggable="true" class="todo-list-item prevent-select">
-                        <div class="content">
-                            <div class="label" todo="label">Label</div>
-                        </div>
-                        <div class="icons hidden-wrapper">
-                            <div class="unhidden specific responsive">
-                                <div class="button collapse-icon" todo="collapse"><img width="22" height="22" src="./icons/collapse.svg"></div>
+                <div class="scroll-container">
+                    <div id="content-list" class="todo-list">
+                        <div jsloadin="#todo.list.item remove" draggable="true" class="todo-list-item prevent-select">
+                            <div class="content">
+                                <div class="label" todo="label">Label</div>
                             </div>
-                            <div class="hidden">
-                                <div class="button" todo="edit"><img width="22" height="22" src="./icons/edit.svg"></div>
-                                <div class="button" todo="clone"><img width="22" height="22" src="./icons/clone.svg"></div>
-                                <div class="button" todo="remove"><img width="22" height="22" src="./icons/remove.svg"></div>
+                            <div class="icons hidden-wrapper">
+                                <div class="unhidden">
+                                    <div class="button collapse-icon" todo="collapse"><img width="22" height="22" src="./icons/collapse.svg"></div>
+                                </div>
+                                <div class="hidden">
+                                    <div class="button" todo="clone"><img width="22" height="22" src="./icons/clone.svg"></div>
+                                    <div class="button" todo="remove"><img width="22" height="22" src="./icons/remove.svg"></div>
+                                    <div class="button" todo="edit"><img width="22" height="22" src="./icons/edit.svg"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -52,9 +54,17 @@
                     Listo App
                 </h1>
                 <hr>
-                <div id="todo-list">
-                    <div class="todo-item" draggable="true" jsloadin="#todo.content.item remove">
-                        <input type="checkbox">
+                <div class="scroll-container">
+                    <div id="todo-list" class="todo-list">
+                        <div class="todo-item" draggable="true" jsloadin="#todo.content.item remove">
+                            <div class="checkbox">
+                                <input todo="checkbox" type="checkbox">
+                            </div>
+                            <div class="goal" todo="goal"></div>
+                            <div>
+                                <div class="button" todo="remove"><img width="22" height="22" src="./icons/remove.svg"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="action">

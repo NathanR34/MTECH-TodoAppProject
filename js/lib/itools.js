@@ -21,14 +21,23 @@ let itools = (function(){
             handle[this.type].remove(this);
         }
     }
+
+    class ResponseCollection {
+        constructor(){
+            this.responses = {};
+        }
+        add(name, response){
+            keyop.set(this.responses, name, response, {merge: keyop.type.object});
+        }
+        get(name){
+            keyop.get(this.responses, name);
+        }
+    }
     
     class ElementInterface {
         constructor(element, ref={}){
             this.ref = ref;
             this.element = element;
-            if(element){
-                element.controller = this;
-            }
             this.handle = {};
         }
         focus(){
@@ -143,11 +152,11 @@ let itools = (function(){
                 this.add(element);
             }
         }
-        handleEvent(event, element){
+        handleEvent(event, member){
             let type = event.type;
             if(type in this.handle){
                 for(let response of this.handle[type]){
-                    response.respond(this, element, event);
+                    response.respond(this, member.element, event);
                 }
             }
         }
@@ -189,13 +198,13 @@ let itools = (function(){
                 yield member;
             }
         }
-        add(member){
-            return this.members.add(member);
+        add(member, ...args){
+            return this.members.add(member, ...args);
         }
-        addAll(members){
+        addAll(members, ...args){
             let i=0;
             for(let member of members){
-                if(this.add(member)) i++;
+                if(this.add(member, ...args)) i++;
             }
             return i;
         }
@@ -264,8 +273,9 @@ let itools = (function(){
             }
         },
         Response: Response,
+        ResponseCollection: ResponseCollection,
         Group: Group,
-        HostGroup: HostGroup
+        HostGroup: HostGroup,
     }
 
     return itools;

@@ -117,6 +117,16 @@ let TodoApp = (function(appElement, userTools, devTools){
                 click: new Response("click", createTodoItem)
             }
         }
+
+        function onChecked(ei, elm, event){
+            ei.ref.host.onToggled(!!elm.checked);
+        }
+
+        responses.checkbox = {
+            ontoggle: {
+                input: new Response("input", onChecked)
+            }
+        }
     }
 
     
@@ -151,21 +161,24 @@ let TodoApp = (function(appElement, userTools, devTools){
             return list;
         }
         save(){
-            let lists = [];
+            let items = [];
             for(let member of this.group){
-                lists.push(member.save());
+                items.push(member.save());
             }
-            return {list: lists};
+            return {items: items};
         }
-        load(data, ref){
-            for(let itemData of data.list){
-                this.add(TodoList.Item.load(itamData, ref, this));
+        load(data={}, ref){
+            let dataItems = data.items || [];
+            for(let itemData of dataItems){
+                this.add(TodoList.Item.load(itemData, ref, {listElement: this}), "append");
             }
+        }
+        clear(){
+            this.listI.removeAll();
         }
 
-
-        addMember(item){
-            return this.listI.add(item.itemI, "prepend");
+        addMember(item, method="prepend"){
+            return this.listI.add(item.itemI, method);
         }
         removeMember(item){
             return this.listI.remove(item.itemI);
@@ -176,8 +189,8 @@ let TodoApp = (function(appElement, userTools, devTools){
         setAllInactive(){
             this.group.notify(this, {active: false});
         }
-        add(item){
-            return this.group.add(item);
+        add(item, method){
+            return this.group.add(item, method);
         }
         remove(item){
             if(this.group.remove(item)){
@@ -185,8 +198,11 @@ let TodoApp = (function(appElement, userTools, devTools){
             }
             return false;
         }
+        removeAll(){
+            this.group.removeAll();
+        }
         createItem(name, model, contentInterface){
-            name = parseInput(name);
+            name = parseInput(name, 16);
             if(!name) return false;
             let content = new TodoContent(contentInterface, name);
             let item = TodoList.Item.fromModel(model, content, this);
@@ -235,17 +251,19 @@ let TodoApp = (function(appElement, userTools, devTools){
         static fromModel(itemModel, content, contentList){
             return new TodoListItem(itemModel.clone(), content, contentList);
         }
-        static load(data, ref, contentList){
-            let content = TodoContent.load(data.content, ref);
-            let item = TodoList.Item.fromModel(ref.listItemModel, content, contentList);
-            item.load(data.item, ref);
+        static load(data, ref, local){
+            let item = TodoList.Item.fromModel(ref.listItemModel, null, local.contentList);
+            item.load(data, ref);
             return item;
         }
         save(){
-
+            return {
+                content: this.content.save()
+            }
         }
         load(data, ref){
-
+            let content = TodoContent.load(data.content, ref);
+            this.content = content;
         }
         clone(){
 
@@ -261,7 +279,7 @@ let TodoApp = (function(appElement, userTools, devTools){
         }
         endEdit(){
             if(this.inEdit){
-                this.changeLabel(parseInput(this.labelI.endEdit()));
+                this.changeLabel(parseInput(this.labelI.endEdit(), 16));
                 this.labelI.assign(".prevent-select");
                 this.inEdit = false;
             }
@@ -361,16 +379,19 @@ let TodoApp = (function(appElement, userTools, devTools){
         get current(){
             return this._current;
         }
+        clear(){
+            this.current = null;
+        }
         createItem(...args){
             if(this.current){
                 this.current.createItem(...args);
             }
         }
-        add(element){
+        add(element, method){
             if(element instanceof TodoItem){
                 element = element.todoI;
             }
-            this.listI.add(element);
+            this.listI.add(element, method);
         }
         remove(element){
             if(element instanceof TodoItem){
@@ -401,28 +422,29 @@ let TodoApp = (function(appElement, userTools, devTools){
             this.contentInterface = contentInterface;
             this.name = name;
         }
-        static load(data, model){
-            let content = TodoContent.fromModel(data.name, model);
-            content.load(data);
-            if(group) group.add(content);
+        static load(data, ref){
+            let content = new TodoContent(ref.contentInterface, data.name);
+            content.load(data, ref);
             return content;
         }
-        load(data){
-            for(let item in data.items){
-                this.add(TodoItem.load(item));
+        load(data, ref){
+            let dataTodos = data.todos || [];
+            let local = {content: this};
+            for(let todoData of dataTodos){
+                this.add(TodoItem.load(todoData, ref, local), "append");
             }
         }
         save(){
-            let items = [];
-            for(let item in this.items){
-                items.push(item.save());
+            let todos = [];
+            for(let todo of this.todos){
+                todos.push(todo.save());
             }
             return {
                 name: this.name,
-                items: items
+                todos: todos
             }
         }
-        clone(){
+        clone(ref){
 
         }
         
@@ -469,25 +491,25 @@ let TodoApp = (function(appElement, userTools, devTools){
         removeMember(){
             return true;
         }
-        add(todo){
-            this.todos.add(todo);
-            this.addToCurrent(todo);
+        add(todo, method){
+            this.todos.add(todo, method);
+            this.addToCurrent(todo, method);
         }
-        addToCurrent(todo){
+        addToCurrent(todo, method){
             if(this.contentInterface.current === this){
-                this.contentInterface.add(todo);
+                this.contentInterface.add(todo, method);
             }
         }
         remove(todo){
             this.todos.remove(todo);
         }
         createItem(goal, model){
-            this.add(TodoItem.fromModel(goal, model));
+            this.add(TodoItem.fromModel(goal, model, this));
         }
     }
 
     class TodoItem {
-        constructor(goal, element){
+        constructor(goal, element, content){
             this.todoI = new ElementInterface(element, {host: this});
             let goalElement = element.querySelector("[todo*=goal]");
             if(goalElement){
@@ -495,18 +517,38 @@ let TodoApp = (function(appElement, userTools, devTools){
             } else {
                 goalElement = this.todoI;
             }
+
+            let buttons = {
+                complete: "input[type=checkbox][todo*=checkbox]",
+                remove: "[todo*=remove]"
+            };
+            jsloadin.queryAllAs(element, buttons, (elements)=>(new ElementGroupInterface(elements, {host:this})));
+
+            this.buttons = buttons;
+
+            buttons.complete.addResponse(responses.checkbox.ontoggle.input);
+            buttons.remove.addResponse(responses.delete.dblclick);
+
             this.goalI = goalElement;
+
+            this.goalI.addResponse(responses.edit.dblclick);
+
+            this.goalI.addResponse(responses.edit.end.keydown);
 
             this.goal = goal;
 
             this.inEdit = false;
+
+            if(!content) throw Error("");
+
+            this.content = content;
         }
-        static fromModel(goal, model){
-            return new TodoItem(goal, model.clone());
+        static fromModel(goal, model, content){
+            return new TodoItem(goal, model.clone(), content);
         }
-        static load(data, model){
-            let todo = new TodoItem.fromModel(data.name, model);
-            todo.load(data);
+        static load(data, ref, local){
+            let todo = TodoItem.fromModel(data.goal, ref.todoItemModel, local.content);
+            todo.load(data, ref);
             return todo;
         }
         save(){
@@ -527,9 +569,15 @@ let TodoApp = (function(appElement, userTools, devTools){
         }
         endEdit(){
             if(this.inEdit){
-                this.goal = parseInput(this.goalI.endEdit());
+                this.goal = parseInput(this.goalI.endEdit(), 50);
                 this.inEdit = false;
             }
+        }
+        delete(){
+            this.content.remove(this);
+        }
+        onToggled(checked){
+            this.goalI.assign(`${checked?"":"-"}.completed`);
         }
         get goal(){
             return this._goal;
@@ -542,10 +590,10 @@ let TodoApp = (function(appElement, userTools, devTools){
 
     /* CREATION */
 
-    function parseInput(input){
+    function parseInput(input, maxChars){
         let s = "";
         for(let i in input){
-            if(i>=16) break;
+            if(i>=maxChars) break;
             let cc = input.charCodeAt(i);
             let c = input[i];
             if(9<=cc && cc<=11) c=" ";
@@ -556,13 +604,29 @@ let TodoApp = (function(appElement, userTools, devTools){
     }
     var todoContentElementInterface = new TodoContentInterfaceStatic(appContent.todoList, appContent.title, appContent.content);
 
-    let todoList = new TodoList(appContent.list, appContent.input, appContent.inputContainer);
+    let todoList = null;
 
-    function load(data){
-        todoList.load(data, [appElements.listItem, []]);
+
+    function clear(){
+        todoList.clear();
+        todoContentElementInterface.clear();
+    }
+
+    function load(data={}){
+        let ref = {
+            contentInterface: todoContentElementInterface,
+            listElement: appContent.list,
+            inputElement: appContent.input,
+            inputContainer: appContent.inputContainer,
+            listItemModel: appElements.listItem,
+            todoItemModel: appElements.todoItem
+        }
+        todoList = TodoList.load(data.list, ref);
     }
     function save(){
-
+        return {
+            list: todoList && todoList.save() || {}
+        }
     }
 
     let todoApp = {
