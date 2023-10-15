@@ -6,7 +6,6 @@ let todoApp = TodoApp(
     }), 
     new AppTools.DevTools(function(...args){
         console.log(...args);
-        throw Error("App Failure");
-    }, {debug:true})
+    }, {debug:false})
 );
 todoApp.load();
