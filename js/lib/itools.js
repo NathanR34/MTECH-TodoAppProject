@@ -55,12 +55,34 @@ let itools = (function(){
         }
         startEdit(){
             this.element.contentEditable = true;
+            let dragElement = this.ref.dragElement;
+            if(dragElement){
+                if(dragElement instanceof ElementInterface){
+                    dragElement = dragElement.element;
+                }
+                if(dragElement.draggable){
+                    this.draggable = true;
+                }
+                if(this.draggable){
+                    dragElement.draggable = false;
+                }
+            }
             this.focus().select();
             return this;
         }
         endEdit(){
             let value = this.element.innerText;
             this.element.contentEditable = false;
+            let dragElement = this.ref.dragElement;
+            if(dragElement){
+                if(dragElement instanceof ElementInterface){
+                    dragElement = dragElement.element;
+                }
+                if(this.draggable){
+                    dragElement.draggable = true;
+                }
+            }
+            
             return value;
         }
         addResponse(response){
@@ -76,10 +98,11 @@ let itools = (function(){
                 }
             }
         }
-        add(element, method="append"){
+        add(element, method="append", ref){
             if(element instanceof ElementInterface){
                 element = element.element;
             }
+            if(typeof method !== "string") throw Error("");
             switch(method){
                 case "append":
                     this.element.append(element);
@@ -87,8 +110,19 @@ let itools = (function(){
                 case "prepend":
                     this.element.prepend(element);
                     break;
+                case "insert":
+                    if(ref instanceof ElementInterface){
+                        ref = ref.element;
+                    }
+                    if(ref instanceof Element){
+                        if(ref.parentElement === this.element){
+                            ref.after(element);
+                            break;
+                        }
+                    }
+                    return false;
                 default:
-                    this.element.append(element);
+                    return false;
             }
             return true;
         }
@@ -252,7 +286,7 @@ let itools = (function(){
             this.host.notify(from, message);
         }
         add(member){
-            if(!this.members.has(member) && this.host.addMember(member, this)){
+            if(!this.members.has(member) && this.host.addMember(member)){
                 return super.add(member);
             }
             return false;

@@ -17,7 +17,7 @@ let jsloadin = (function(){
             }
         }
         get parent(){
-            return this.parent || this.element.parentElement;
+            return this.element.parentElement;
         }
         initFlag(flag){
             if(flag[0] === "#"){

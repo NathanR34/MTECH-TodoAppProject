@@ -13,7 +13,7 @@
         <script defer src="./js/main.js"></script>
     </head>
     <body>
-        <div id="app-container" class="main">
+        <div id="app-container" class="app">
             <div class="top-bar">
                 <div class="left-side">
                     <div class="logo">Listo</div>
@@ -28,7 +28,6 @@
                     <input id="list-input" class="list-input">
                     <div id="list-input-button" class="list-input-button" todo="add">+</div>
                 </div>
-                <hr>
                 <div class="scroll-container">
                     <div id="content-list" class="todo-list">
                         <div jsloadin="#todo.list.item remove" draggable="true" class="todo-list-item prevent-select">
@@ -49,11 +48,10 @@
                     </div>
                 </div>
             </div>
-            <div id="content" class="content-area">
+            <main id="content" class="content-area">
                 <h1 class="title" id="todo-title">
                     Listo App
                 </h1>
-                <hr>
                 <div class="scroll-container">
                     <div id="todo-list" class="todo-list">
                         <div class="todo-item" draggable="true" jsloadin="#todo.content.item remove">
@@ -72,13 +70,22 @@
                         <img width="64" height="64" src="./icons/add-large.svg">
                     </div>
                 </div>
-            </div>
-            <div>
-                <div jsloadin="#todo.user.profile remove">
-
+            </main>
+            <div class="user-profile-menu menu" jsloadin="#todo.user.profile remove">
+                <div class="menu-area">
+                    <h1>User</h1>
+                    <label for="menu-user-name-input">User Name</label><input name="menu-user-name-input" id="menu-user-name-input" type="text" class="menu-input">
+                    <label for="menu-user-code-input">Code</label><input name="menu-user-code-input" id="menu-user-code-input" type="text" class="menu-input">
+                    <div class="user-show">Log-in as:</div>
+                    <div class="user-name"></div>
                 </div>
-                <div jsloadin="#todo.user.settings remove">
-
+            </div>
+            <div class="user-settings-menu menu" jsloadin="#todo.user.settings remove">
+                <div class="menu-area">
+                    <h1>Settings</h1>
+                    <button class="menu-button user-show" id="menu-save-button">Save</button>
+                    <button class="menu-button user-show" id="menu-load-button">Load</button>
+                    <div class="non-user-show">Log-in to use settings</div>
                 </div>
             </div>
         </div>

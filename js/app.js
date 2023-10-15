@@ -18,7 +18,9 @@ let TodoApp = (function(appElement, userTools, devTools){
         todoList: "#todo-list",
         content: "#content",
         input: "#list-input",
-        inputContainer: "#list-input-container"
+        inputContainer: "#list-input-container",
+        userNameInput: "#menu-user-name-input",
+        userCodeInput: "#menu-user-code-input"
     }
 
     let appElements = {
@@ -30,7 +32,13 @@ let TodoApp = (function(appElement, userTools, devTools){
 
     let appButtons = {
         "userProfile": "#user-profile-button",
-        "userSettings": "#user-settings-button"
+        "userSettings": "#user-settings-button",
+        "userSave": "#menu-save-button",
+        "userLoad": "#menu-load-button"
+    }
+
+    let appCommon = {
+        "userName": ".user-name"
     }
 
     /*  INITIALIZATION  */
@@ -51,9 +59,10 @@ let TodoApp = (function(appElement, userTools, devTools){
             app.submitFailure("Failed to find jsloadin elements:", failed);
         }
         jsloadin.queryAllAs(appElement, appButtons, 
-            (elements)=>(new ElementGroupInterface(elements, {
-                settings: appElements.userSettings, 
-            }))
+            (elements)=>(new ElementGroupInterface(elements))
+        )
+        jsloadin.queryAllAs(appElement, appCommon, 
+            (elements)=>(new ElementGroupInterface(elements))
         )
     }
 
@@ -80,7 +89,8 @@ let TodoApp = (function(appElement, userTools, devTools){
             end: {
                 keydown: new Response("keydown", function(ei, elm, event){
                     if(event.key === "Enter") endEdit(ei, elm);
-                })
+                }),
+                focusout: new Response("focusout", endEdit)
             }
         };
 
@@ -103,7 +113,10 @@ let TodoApp = (function(appElement, userTools, devTools){
         }
 
         function createTodoItem(ei, elm){
-            ei.ref.host.createItem("Todo", appElements.todoItem);
+            let item = ei.ref.host.createItem("", appElements.todoItem);
+            if(item){
+                item.startEdit();
+            }
         };
 
         responses.create = {
@@ -170,7 +183,7 @@ let TodoApp = (function(appElement, userTools, devTools){
         load(data={}, ref){
             let dataItems = data.items || [];
             for(let itemData of dataItems){
-                this.add(TodoList.Item.load(itemData, ref, {listElement: this}), "append");
+                this.add(TodoList.Item.load(itemData, ref, {contentList: this}), "append");
             }
         }
         clear(){
@@ -214,6 +227,9 @@ let TodoApp = (function(appElement, userTools, devTools){
     TodoList.Item = class TodoListItem {
         constructor(itemElement, content, contentList){
 
+            if(!contentList){
+                app.submitFailure("No content list");
+            }
             this.contentList = contentList;
 
             this.itemI = new ElementInterface(itemElement, {host: this});
@@ -221,7 +237,7 @@ let TodoApp = (function(appElement, userTools, devTools){
 
             let labelElement = itemElement.querySelector("[todo*=label");
             if(labelElement){
-                labelElement = new ElementInterface(labelElement, {host: this});
+                labelElement = new ElementInterface(labelElement, {host: this, dragElement: this.itemI});
             } else {
                 labelElement = this.itemI;
             }
@@ -229,7 +245,7 @@ let TodoApp = (function(appElement, userTools, devTools){
 
             let buttons = jsloadin.queryAllAs(itemElement, {
                     duplicate: "[todo*=duplicate]",
-                    delete: "[todo*=delete]",
+                    delete: "[todo*=remove]",
                     edit: "[todo*=edit]",
                     collapse: "[todo=collapse]"
                 }, 
@@ -241,6 +257,7 @@ let TodoApp = (function(appElement, userTools, devTools){
             buttons.edit.addResponse(responses.edit.click);
             buttons.delete.addResponse(responses.delete.dblclick);
             this.labelI.addResponse(responses.edit.end.keydown);
+            this.labelI.addResponse(responses.edit.end.focusout);
 
             this.buttons = buttons;
             this.content = content;
@@ -285,6 +302,9 @@ let TodoApp = (function(appElement, userTools, devTools){
             }
         }
         delete(){
+            if(this.content === this.content.contentInterface.current){
+                this.content.contentInterface.current = null;
+            }
             this.contentList.remove(this);
         }
         notify(from, {label, active}){
@@ -326,7 +346,11 @@ let TodoApp = (function(appElement, userTools, devTools){
             } else {
                 this._label = label;
             }
+            if(!this._label) this._label = "";
             this.labelI.text = this._label;
+        }
+        get label(){
+            return this._label;
         }
         set active(active){
             if(active !== this._active){
@@ -384,8 +408,9 @@ let TodoApp = (function(appElement, userTools, devTools){
         }
         createItem(...args){
             if(this.current){
-                this.current.createItem(...args);
+                return this.current.createItem(...args);
             }
+            return null;
         }
         add(element, method){
             if(element instanceof TodoItem){
@@ -456,7 +481,7 @@ let TodoApp = (function(appElement, userTools, devTools){
             }
         }
         get name(){
-            return this._name;
+            return this._name || "";
         }
         set active(active){
             if(active !== this._active){
@@ -488,7 +513,7 @@ let TodoApp = (function(appElement, userTools, devTools){
         addMember(){
             return true;
         }
-        removeMember(){
+        removeMember(todo){
             return true;
         }
         add(todo, method){
@@ -500,20 +525,29 @@ let TodoApp = (function(appElement, userTools, devTools){
                 this.contentInterface.add(todo, method);
             }
         }
+        removeFromCurrent(todo){
+            if(this.contentInterface.current === this){
+                this.contentInterface.remove(todo);
+            }
+        }
         remove(todo){
             this.todos.remove(todo);
+            this.removeFromCurrent(todo);
         }
         createItem(goal, model){
-            this.add(TodoItem.fromModel(goal, model, this));
+            let item = TodoItem.fromModel(goal, model, this);
+            this.add(item);
+            return item;
         }
+        
     }
 
     class TodoItem {
         constructor(goal, element, content){
-            this.todoI = new ElementInterface(element, {host: this});
+            this.todoI = new ElementInterface(element, {host: this, dragElement: this.todoI});
             let goalElement = element.querySelector("[todo*=goal]");
             if(goalElement){
-                goalElement = new ElementInterface(goalElement, {host: this});
+                goalElement = new ElementInterface(goalElement, {host: this, dragElement: this.todoI});
             } else {
                 goalElement = this.todoI;
             }
@@ -535,11 +569,15 @@ let TodoApp = (function(appElement, userTools, devTools){
 
             this.goalI.addResponse(responses.edit.end.keydown);
 
+            this.goalI.addResponse(responses.edit.end.focusout);
+
             this.goal = goal;
 
             this.inEdit = false;
 
-            if(!content) throw Error("");
+            if(!content) {
+                app.submitFailure("No content object");
+            }
 
             this.content = content;
         }
@@ -583,6 +621,7 @@ let TodoApp = (function(appElement, userTools, devTools){
             return this._goal;
         }
         set goal(goal){
+            if(!goal) goal = "Todo";
             this.goalI.text = goal;
             this._goal = goal;
         }
@@ -606,6 +645,77 @@ let TodoApp = (function(appElement, userTools, devTools){
 
     let todoList = null;
 
+    {
+        let userProfileEnabled = false;
+        let userSettingsEnabled = false;
+
+        let settingsHost = {};
+        let profileHost = {};
+        let appHost = {};
+
+        let settingsI = new ElementInterface(appElements.userSettings.element, {host: settingsHost});
+        let profileI = new ElementInterface(appElements.userProfile.element, {host: profileHost});
+
+        let appI = new ElementInterface(appElement, {host: appHost});
+
+        function toggleUserProfile(){
+            if(userProfileEnabled){
+                appI.remove(profileI);
+                userProfileEnabled = false;
+            } else {
+                if(userSettingsEnabled){
+                    toggleUserSettings();
+                }
+                appI.add(profileI);
+                userProfileEnabled = true;
+            }
+        }
+        function toggleUserSettings(){
+            if(userSettingsEnabled){
+                appI.remove(settingsI);
+                userSettingsEnabled = false;
+            } else {
+                if(userProfileEnabled){
+                    toggleUserProfile();
+                }
+                appI.add(settingsI);
+                userSettingsEnabled = true;
+            }
+        }
+
+        responses.menu = {
+            profile: {
+                toggle: {
+                    click: new Response("click", toggleUserProfile)
+                }
+            },
+            settings: {
+                toggle: {
+                    click: new Response("click", toggleUserSettings)
+                }
+            }
+        }
+
+        function logIn(){
+
+        }
+    }
+
+    let users = {};
+
+    if(!users) users = {};
+
+    function saveUsers(){
+        localStorage.setItem("Listo_users", users);
+    }
+
+    function loadUsers(){
+        let usersData = localStorage.getItem("Listo_users");
+        if(usersData) users = usersData;
+    }
+
+    appButtons.userProfile.addResponse(responses.menu.profile.toggle.click);
+    appButtons.userSettings.addResponse(responses.menu.settings.toggle.click);
 
     function clear(){
         todoList.clear();
