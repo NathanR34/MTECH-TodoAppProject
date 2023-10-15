@@ -9,3 +9,4 @@ let todoApp = TodoApp(
         throw Error("App Failure");
     }, {debug:true})
 );
+todoApp.load();
