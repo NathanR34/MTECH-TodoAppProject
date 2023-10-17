@@ -73,19 +73,22 @@
             </main>
             <div class="user-profile-menu menu" jsloadin="#todo.user.profile remove">
                 <div class="menu-area">
-                    <h1>User</h1>
+                    <h1>Welcome <h1 class="user-name"></h1></h1>
                     <label for="menu-user-name-input">User Name</label><input name="menu-user-name-input" id="menu-user-name-input" type="text" class="menu-input">
                     <label for="menu-user-code-input">Code</label><input name="menu-user-code-input" id="menu-user-code-input" type="text" class="menu-input">
-                    <div class="user-show">Log-in as:</div>
-                    <div class="user-name"></div>
+                    <div class="munu-row">
+                        <button class="menu-button" id="menu-user-login-button">Log-in</button>
+                        <button class="menu-button" id="menu-user-create-button">Create</button>
+                    </div>
                 </div>
             </div>
             <div class="user-settings-menu menu" jsloadin="#todo.user.settings remove">
                 <div class="menu-area">
                     <h1>Settings</h1>
+                    <button class="menu-button" id="clear-list-button">Clear List</button>
+                    <div class="non-user-show">Log-in to use load and save settings</div>
                     <button class="menu-button user-show" id="menu-save-button">Save</button>
                     <button class="menu-button user-show" id="menu-load-button">Load</button>
-                    <div class="non-user-show">Log-in to use settings</div>
                 </div>
             </div>
         </div>

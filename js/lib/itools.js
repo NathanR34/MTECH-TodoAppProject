@@ -8,17 +8,20 @@ let itools = (function(){
             this.type = type;
             this.respond = fn;
         }
-        bind(handle){
-            let type = this.type;
-            let types = [type];
-            if(!handle[type]){
-                handle[type] = new Set();
+        *bind(handle){
+            for(let type of this.types()){
+                yield type;
+                if(!handle[type]){
+                    handle[type] = new Set();
+                }
+                handle[type].add(this);
             }
-            handle[type].add(this);
-            return types;
         }
         unbind(handle){
             handle[this.type].remove(this);
+        }
+        *types(){
+            yield this.type;
         }
     }
 
@@ -88,6 +91,24 @@ let itools = (function(){
         addResponse(response){
             for(let type of response.bind(this.handle)){
                 this.element.addEventListener(type, this);
+            }
+        }
+        pingResponse(response, end=()=>true){
+            let self = this;
+            let element = this.element;
+            let types = [];
+            let i = 0;
+            function respond(event){
+                response.respond(self, element, event);
+                if(end(this, element, ++i)){
+                    for(let type of types){
+                        element.removeEventListener(type, respond);
+                    }
+                }
+            }
+            for(let type of response.types){
+                types.push(type);
+                this.element.addEventListener(type, respond);
             }
         }
         handleEvent(event){
@@ -162,6 +183,20 @@ let itools = (function(){
         get text(){
             return this.element.innerText;
         }
+        set value(value){
+            if("value" in this.element){
+                this.element.value = value;
+            } else {
+                this.element.innerText = value;
+            }
+        }
+        get value(){
+            if("value" in this.element){
+                return this.element.value;
+            } else {
+                return this.element.innerText;
+            }
+        }
     };
     
     class ElementGroupInterface {
@@ -176,6 +211,11 @@ let itools = (function(){
         *[Symbol.iterator](){
             for(let element of this.elements){
                 yield element;
+            }
+        }
+        set text(text){
+            for(let element of this){
+                element.text = text;
             }
         }
         add(element){
@@ -195,7 +235,7 @@ let itools = (function(){
             }
         }
         addResponse(response){
-            let types = response.bind(this.handle);
+            let types = [...response.bind(this.handle)];
             for(let element of this.elements){
                 element.addEventTypes(...types);
             }
@@ -231,6 +271,9 @@ let itools = (function(){
             for(let member of this.members){
                 yield member;
             }
+        }
+        get size(){
+            return this.members.size;
         }
         add(member, ...args){
             return this.members.add(member, ...args);

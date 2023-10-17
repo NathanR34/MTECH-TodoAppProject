@@ -331,3 +331,13 @@ body {
     padding-right: 15px;
     text-align: center;
 }
+
+.app .menu-row {
+    display: flex;
+    justify-content: stretch;
+    align-items: center;
+}
+
+.app .menu-row > * {
+    flex-grow: 1;
+}

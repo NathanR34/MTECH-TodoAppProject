@@ -8,4 +8,4 @@ let todoApp = TodoApp(
         console.log(...args);
     }, {debug:false})
 );
-todoApp.load();
+todoApp.start();

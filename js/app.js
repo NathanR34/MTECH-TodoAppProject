@@ -25,20 +25,26 @@ let TodoApp = (function(appElement, userTools, devTools){
 
     let appElements = {
         listItem: "todo.list.item",
-        todoItem: "todo.content.item",
-        userSettings: "todo.user.settings",
-        userProfile: "todo.user.profile"
+        todoItem: "todo.content.item"
     }
 
     let appButtons = {
         "userProfile": "#user-profile-button",
         "userSettings": "#user-settings-button",
         "userSave": "#menu-save-button",
-        "userLoad": "#menu-load-button"
+        "userLoad": "#menu-load-button",
+        "userLogIn": "#menu-user-login-button",
+        "userCreate": "#menu-user-create-button",
+        "clearList": "#clear-list-button"
     }
 
     let appCommon = {
         "userName": ".user-name"
+    }
+
+    let appMenus = {
+        userSettings: "todo.user.settings",
+        userProfile: "todo.user.profile"
     }
 
     /*  INITIALIZATION  */
@@ -58,11 +64,20 @@ let TodoApp = (function(appElement, userTools, devTools){
         if(failed.length > 0){
             app.submitFailure("Failed to find jsloadin elements:", failed);
         }
-        jsloadin.queryAllAs(appElement, appButtons, 
-            (elements)=>(new ElementGroupInterface(elements))
+        jsloadin.getAs(appMenus, null, onFail, failed);
+        if(failed.length > 0){
+            app.submitFailure("Failed to find jsloadin menus:", failed);
+        }
+        let searchElements = [appElement];
+        for(let key in appMenus){
+            let menu = appMenus[key];
+            searchElements.push(menu.element);
+        }
+        jsloadin.queryAllAs(searchElements, appButtons, 
+            (elements)=>(new ElementGroupInterface(elements, {}))
         )
-        jsloadin.queryAllAs(appElement, appCommon, 
-            (elements)=>(new ElementGroupInterface(elements))
+        jsloadin.queryAllAs(searchElements, appCommon, 
+            (elements)=>(new ElementGroupInterface(elements, {}))
         )
     }
 
@@ -172,6 +187,9 @@ let TodoApp = (function(appElement, userTools, devTools){
             let list = new TodoList(ref.listElement, ref.inputElement, ref.inputContainer);
             list.load(data, ref);
             return list;
+        }
+        get size(){
+            return this.group.size;
         }
         save(){
             let items = [];
@@ -653,8 +671,8 @@ let TodoApp = (function(appElement, userTools, devTools){
         let profileHost = {};
         let appHost = {};
 
-        let settingsI = new ElementInterface(appElements.userSettings.element, {host: settingsHost});
-        let profileI = new ElementInterface(appElements.userProfile.element, {host: profileHost});
+        let settingsI = new ElementInterface(appMenus.userSettings.element, {host: settingsHost});
+        let profileI = new ElementInterface(appMenus.userProfile.element, {host: profileHost});
 
         let appI = new ElementInterface(appElement, {host: appHost});
 
@@ -695,34 +713,189 @@ let TodoApp = (function(appElement, userTools, devTools){
                 }
             }
         }
+    }
 
-        function logIn(){
+    function parseUserName(name){
+        let newName = "";
+        for(let i in name){
+            let c = name[i];
+            newName += c;
+        }
+        return name
+    }
 
+    {
+        function userLogInAction(ei){
+            let name = parseUserName(ei.ref.nameInput.value);
+            let code = ei.ref.codeInput.value;
+            let success = logIn(name, code);
+        }
+        function userCreateAction(ei){
+            let name = parseUserName(ei.ref.nameInput.value);
+            let code = ei.ref.codeInput.value;
+            let success = createUser(name, code);
+        }
+        function userSaveAction(){
+            let success = userSave();
+        }
+        function userLoadAction(){
+            let success = userLoad();
+        }
+        responses.user = {
+            login: {
+                click: new Response("click", userLogInAction)
+            },
+            create: {
+                click: new Response("click", userCreateAction)
+            },
+            load: {
+                click: new Response("click", userLoadAction)
+            },
+            save: {
+                click: new Response("click", userSaveAction)
+            }
         }
     }
 
-    let users = {};
+    {
+        let nameI = new ElementInterface(appContent.userNameInput);
+        let codeI = new ElementInterface(appContent.userCodeInput);
 
-    if(!users) users = {};
+        appButtons.userLogIn.ref.nameInput = nameI;
+        appButtons.userLogIn.ref.codeInput = codeI;
+        appButtons.userCreate.ref.nameInput = nameI;
+        appButtons.userCreate.ref.codeInput = codeI;
 
-    function saveUsers(){
-        localStorage.setItem("Listo_users", users);
+        appButtons.userLogIn.addResponse(responses.user.login.click);
+        appButtons.userCreate.addResponse(responses.user.create.click);
+        appButtons.userSave.addResponse(responses.user.save.click);
+        appButtons.userLoad.addResponse(responses.user.load.click);
+
     }
 
-    function loadUsers(){
-        let usersData = localStorage.getItem("Listo_users");
-        if(usersData) users = usersData;
+    let user = {}
+
+    function getObjData(key){
+        let data = localStorage.getItem(key);
+        if(data){
+            return JSON.parse(data);
+        }
+        return null;
+    }
+    function setObjData(key, obj){
+        let data = JSON.stringify(obj);
+        localStorage.setItem(key, data);
+    }
+    function getStrData(key){
+        return localStorage.getItem(key);
+    }
+    function setStrData(key, str){
+        localStorage.setItem(key, str);
+    }
+
+    function userSave(){
+        if(user.name){
+            setObjData(`Listo_user_data_${user.name}`, save());
+            return true;
+        }
+        return null;
+    }
+    function userLoad(merge=false){
+        if(user.name){
+            let data = getObjData(`Listo_user_data_${user.name}`);
+            if(data){
+                load(data, merge);
+                return true;
+            }
+            return false;
+        }
+        return null;
+    }
+    function logIn(name, code, loadMethod="replace"){
+        if(name){
+            let userCred = getStrData(`Listo_user_cred_${name}`);
+            if(userCred && userCred === code){
+                setUserName(name, code);
+                switch(loadMethod){
+                    case "merge":
+                        userLoad(true);
+                        break;
+                    case "replace":
+                        userLoad(false);
+                        break;
+                    case "none":
+                        break;
+                    default:
+                        userLoad(true);
+                        break;
+                }
+                return true;
+            }
+            return false;
+        }
+        return null;
+    }
+
+    function createUser(name, code){
+        if(name){
+            if(name === user.name){
+                changeCode(name, code);
+            } else {
+                let success = addUser(name, code);
+                if(success){
+                    setUserName(name, code);
+                }
+                return success;
+            }
+        }
+        return null;
+    }
+    function addUser(name, code){
+        if(name){
+            let user = getStrData(`Listo_user_cred_${name}`);
+            if(!user){
+                setStrData(`Listo_user_cred_${name}`, code);
+                setObjData(`Listo_user_data_${name}`, {});
+                let users = getObjData(`Listo_users`) || [];
+                users.push(name);
+                setObjData(`Listo_users`, users);
+                return true;
+            }
+            return false;
+        }
+        return null;
+    }
+    function setUserName(name, code){
+        user.name = name;
+        appCommon.userName.text = name;
+        setObjData(`Listo_user_current`, {name: name, code: code});
+    }
+
+    function changeCode(name, code){
+        setStrData(`Listo_user_cred_${name}`, code);
+    }
+
+    function logInAsCurrent(loadMethod){
+        let data = getObjData(`Listo_user_current`);
+        if(data){
+            return logIn(data.name, data.code, loadMethod);
+        }
+        return null;
     }
 
     appButtons.userProfile.addResponse(responses.menu.profile.toggle.click);
     appButtons.userSettings.addResponse(responses.menu.settings.toggle.click);
 
+
+
     function clear(){
-        todoList.clear();
+        if(todoList){
+            todoList.clear();
+        }
         todoContentElementInterface.clear();
     }
 
-    function load(data={}){
+    function load(data={}, merge=false){
         let ref = {
             contentInterface: todoContentElementInterface,
             listElement: appContent.list,
@@ -731,17 +904,35 @@ let TodoApp = (function(appElement, userTools, devTools){
             listItemModel: appElements.listItem,
             todoItemModel: appElements.todoItem
         }
-        todoList = TodoList.load(data.list, ref);
+        if(merge && todoList && todoList.size){
+            todoList.load(data.list, ref);
+        } else {
+            clear();
+            todoList = TodoList.load(data.list, ref);
+        }
     }
+
     function save(){
-        return {
-            list: todoList && todoList.save() || {}
+        let data = {
+            list: (todoList && todoList.save()) || {}
+        }
+        return data;
+    }
+
+    function start(){
+        if(!logInAsCurrent()){
+            load();
         }
     }
 
     let todoApp = {
         load: load,
-        save: save
+        save: save,
+        start: start,
+        logIn: logIn,
+        createUser: createUser,
+        userSave: userSave,
+        userLoad: userLoad
     };
 
     return todoApp;

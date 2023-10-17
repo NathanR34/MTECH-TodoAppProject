@@ -106,56 +106,69 @@ let jsloadin = (function(){
     function getAs(obj, modify, onFail, failData){
         for(let key in obj){
             let name = obj[key];
-            let result = get(name);
-            if(!result && onFail){
-                result = onFail(failData, key, name, result);
+            if(typeof name === "string"){
+                let result = get(name);
+                if(!result && onFail){
+                    result = onFail(failData, key, name, result);
+                }
+                if(modify){
+                    result = modify(result, onFail, failData);
+                }
+                keyop.set(obj, key, result);
             }
-            if(modify){
-                result = modify(result, onFail, failData);
-            }
-            keyop.set(obj, key, result);
         }
         return obj;
     }
     function queryAs(element, obj, modify, onFail, failData){
         for(let key in obj){
             let query = obj[key];
-            let result = element.querySelector(query);
-            if(!result && onFail){
-                result = onFail(failData, key, query, result);
+            if(typeof query === "string"){
+                let result = element.querySelector(query);
+                if(!result && onFail){
+                    result = onFail(failData, key, query, result);
+                }
+                if(modify){
+                    result = modify(result, onFail, failData);
+                }
+                keyop.set(obj, key, result);
             }
-            if(modify){
-                result = modify(result, onFail, failData);
-            }
-            keyop.set(obj, key, result);
         }
         return obj;
     }
-    function queryAllAs(element, obj, modify, onFail, failData){
+    function queryAllAs(elements, obj, modify, onFail, failData){
+        if(!(elements instanceof Array)) elements = [elements];
         for(let key in obj){
             let query = obj[key];
-            let result = element.querySelectorAll(query);
-            if(!result.length && onFail){
-                result = onFail(failData, key, query, result);
+            if(typeof query === "string"){
+                let results = [];
+                for(let element of elements){
+                    let result = element.querySelectorAll(query);
+                    results.push(...result);
+                }
+                if(!results.length && onFail){
+                    results = onFail(failData, key, query, results);
+                }
+                if(modify){
+                    results = modify(results, onFail, failData);
+                }
+                keyop.set(obj, key, results);
             }
-            if(modify){
-                result = modify(result, onFail, failData);
-            }
-            keyop.set(obj, key, result);
         }
         return obj;
     }
     function idsAs(element, obj, modify, onFail, failData){
         for(let key in obj){
             let id = obj[key];
-            let result = element.getElementById(id);
-            if(!result && onFail){
-                result = onFail(failData, key, id, result);
+            if(typeof id === "string"){
+                let result = element.getElementById(id);
+                if(!result && onFail){
+                    result = onFail(failData, key, id, result);
+                }
+                if(modify){
+                    result = modify(result, onFail, failData);
+                }
+                keyop.set(obj, key, result);
             }
-            if(modify){
-                result = modify(result, onFail, failData);
-            }
-            keyop.set(obj, key, result);
         }
         return obj;
     }
